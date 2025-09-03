@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TFC Email Performance Dashboard (Offline)</title>
+  <style>
+    :root {
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --green: #10b981;
+      --blue: #3b82f6;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --shadow: 0 10px 20px rgba(0,0,0,.04), 0 2px 6px rgba(0,0,0,.04);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    .muted { color: var(--muted); }
+    .grid-cards {
+      display: grid; grid-template-columns: 1fr; gap: 24px; margin: 24px 0 32px;
+    }
+    @media (min-width: 900px) {
+      .grid-cards { grid-template-columns: 1fr 1fr; }
+    }
+    .card {
+      background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    section {
+      margin-bottom: 32px;  /* add spacing between sections */
+    }
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+    .row { display: flex; justify-content: space-between; margin: 8px 0; }
+    .tag { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; }
+    .chart-wrap { width: 100%; height: 480px; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 14px; }
+    .legend .key { display: inline-flex; align-items: center; gap: 8px; }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+    .delta-grid {
+      display: grid; grid-template-columns: 1fr; gap: 16px;
+    }
+    @media (min-width: 900px) {
+      .delta-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .delta { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+    .delta h4 { margin: 0 0 8px; font-size: 16px; }
+    .delta .vals { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .delta small { color: var(--muted); }
+    /* Note: we keep these classes; JS assigns them metric-aware */
+    .delta .chg.pos { color: var(--red); font-weight: 600; }
+    .delta .chg.neg { color: #059669; font-weight: 600; }
+    .bullets { display: grid; gap: 10px; }
+    .bullet { display: grid; grid-template-columns: 12px 1fr; gap: 12px; align-items: start; }
+    .dot { width: 8px; height: 8px; border-radius: 999px; margin-top: 6px; }
+    .dot.red { background: var(--red); }
+    .dot.orange { background: var(--amber); }
+    .dot.green { background: var(--green); }
+    .dot.blue { background: var(--blue); }
+    .foot { margin-top: 28px; font-size: 12px; color: var(--muted); }
+    svg { width: 100%; height: 100%; }
+    .x-label { font-size: 12px; fill: #374151; }
+    .y-label { font-size: 12px; fill: #6b7280; }
+    .bar:hover { opacity: 0.9; }
+    .tooltip {
+      position: fixed; pointer-events: none; background: #111827; color: white; padding: 8px 10px;
+      font-size: 12px; border-radius: 8px; transform: translate(-50%, calc(-100% - 10px)); display: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>TFC Welcome Email Performance Analysis</h1>
+      <div class="muted">NGP VAN Campaign Data – August 19–25, 2025</div>
+    </header>
+
+    <!-- Five compact cards will be injected here -->
+    <section id="cardsGrid" class="grid-cards"></section>
+
+    <section class="card">
+      <h3>Performance Metrics Comparison</h3>
+      <div class="chart-wrap">
+        <svg id="barChart" viewBox="0 0 900 450" preserveAspectRatio="xMidYMid meet" aria-label="Performance Bar Chart"></svg>
+      </div>
+      <div class="legend">
+        <span class="key"><span class="swatch" style="background: var(--green)"></span>Open Rate %</span>
+        <span class="key"><span class="swatch" style="background: var(--blue)"></span>Click Rate %</span>
+        <span class="key"><span class="swatch" style="background: var(--amber)"></span>Bounce Rate %</span>
+        <span class="key"><span class="swatch" style="background: var(--red)"></span>Unsubscribe Rate %</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>KPI Totals (Weighted Across 5 Emails)</h3>
+      <div class="delta-grid" id="kpiGrid"></div>
+    </section>
+
+<section class="card" style="background:#eff6ff;">
+  <h3 style="color:#1e40af; margin-bottom:16px;">Key Insights &amp; Recommendations</h3>
+  <div class="bullets">
+    
+    <div class="bullet">
+      <div class="dot green"></div>
+      <div>
+        <strong>Segment Responsiveness Matters</strong>  
+        <p style="margin:4px 0 0 0;">Targeted segments (2025 donors, clickers/openers) delivered stronger engagement</p>
+        <p style="margin:4px 0 0 0; font-style:italic; color:#374151;">
+          Recommendation: Continue prioritizing recently active donors in outreach and allocate more testing to those audiences
+        </p>
+      </div>
+    </div>
+
+    <div class="bullet">
+      <div class="dot orange"></div>
+      <div>
+        <strong>List Hygiene Signals Emerging</strong>  
+        <p style="margin:4px 0 0 0;">Bounce and Unsub rates climb on broader lists</p>
+        <p style="margin:4px 0 0 0; font-style:italic; color:#374151;">
+          Recommendation: In the medium term, explore list validation to sustain inbox placement and protect sender reputation
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+  </div>
+
+  <div id="tt" class="tooltip"></div>
+
+  <script>
+    // ----- Data (5 emails) -----
+    const emailData = [
+      { name: 'Aug-19', recipients: 560,  openRate: 10.25, clickRate: 3.46, bounceRate: 0.5, unsubRate: 0.42, segment: '2025 + All Time Donors' },
+      { name: 'Aug-20', recipients: 1500, openRate: 8.36, clickRate: 2.78, bounceRate: 0.52, unsubRate: 0.60, segment: 'All Time Donors Only' },
+      { name: 'Aug-21', recipients: 2300, openRate: 8.28, clickRate: 2.86, bounceRate: 0.46, unsubRate: 0.58, segment: 'All Time Donors Only' },
+      { name: 'Aug-22', recipients: 4000, openRate: 9.16, clickRate: 3.23, bounceRate: 0.82, unsubRate: 0.85, segment: 'All Time Donors + 2025 Clickers/Openers' },
+      { name: 'Aug-25', recipients: 7200, openRate: 4.89, clickRate: 1.75, bounceRate: 1.19, unsubRate: 0.92, segment: 'In-State + Rest of Subscribers' },
+    ];
+
+    // ----- Build 5 compact header cards -----
+    const cardsGrid = document.getElementById('cardsGrid');
+    emailData.forEach((d, idx) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>${d.name} <span class="tag">Segment</span></h3>
+        <div class="muted" style="margin:-2px 0 10px 0;">${d.segment}</div>
+        <div class="row"><div>Recipients</div><div><strong>${d.recipients.toLocaleString()}</strong></div></div>
+        <div class="row"><div>Open Rate</div><div style="color: var(--green)"><strong>${fmtPct(d.openRate)}</strong></div></div>
+        <div class="row"><div>Click Rate</div><div style="color: var(--blue)"><strong>${fmtPct(d.clickRate)}</strong></div></div>
+      `;
+      cardsGrid.appendChild(card);
+    });
+
+    // ----- Grouped bar chart (pure SVG) -----
+    const svg = document.getElementById('barChart');
+    const W = 900, H = 450, margin = {top: 20, right: 20, bottom: 120, left: 50};
+    const innerW = W - margin.left - margin.right;
+    const innerH = H - margin.top - margin.bottom;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', `translate(${margin.left},${margin.top})`);
+    svg.appendChild(g);
+
+    const series = [
+      { key: 'openRate',  color: getCSS('--green'), label: 'Open Rate %' },
+      { key: 'clickRate', color: getCSS('--blue'),  label: 'Click Rate %' },
+      { key: 'bounceRate',color: getCSS('--amber'), label: 'Bounce Rate %' },
+      { key: 'unsubRate', color: getCSS('--red'),   label: 'Unsubscribe Rate %' },
+    ];
+
+    const maxY = Math.max(...emailData.flatMap(d => series.map(s => d[s.key])));
+    const yMax = Math.ceil(maxY); // keep whole numbers for ticks
+    const yTicks = [0, Math.ceil(yMax / 2), yMax];
+    const scaleY = v => innerH - (v / Math.max(1, yTicks[yTicks.length-1])) * innerH;
+
+    const groupCount = emailData.length;
+    const groupWidth = innerW / groupCount;
+    const barGap = 6;
+    const barWidth = (groupWidth - 40 - barGap * (series.length - 1)) / series.length; // 40 padding inside group
+
+    // y-axis grid + labels
+    yTicks.forEach(t => {
+      const y = scaleY(t);
+      g.appendChild(el('line', { x1: 0, x2: innerW, y1: y, y2: y, stroke: '#e5e7eb' }));
+      g.appendChild(el('text', { x: -10, y: y+4, 'text-anchor': 'end', class: 'y-label' }, t + '%'));
+    });
+
+    // bars + x labels
+    emailData.forEach((d, i) => {
+      const gx = i * groupWidth + 20; // left padding inside group
+      series.forEach((s, si) => {
+        const v = d[s.key];
+        const h = innerH - scaleY(v);
+        const x = gx + si * (barWidth + barGap);
+        const y = scaleY(v);
+        const rect = el('rect', { x, y, width: barWidth, height: h, fill: s.color, rx: 4, class: 'bar' });
+        rect.addEventListener('mousemove', e => showTip(e, `${d.name} · ${s.label}: ${v}%`));
+        rect.addEventListener('mouseleave', hideTip);
+        g.appendChild(rect);
+      });
+      const tx = gx + (series.length * (barWidth + barGap) - barGap)/2;
+      g.appendChild(el('text', {
+        x: tx, y: innerH + 40, 'text-anchor': 'middle',
+        transform: `rotate(-45 ${tx} ${innerH + 40})`, class: 'x-label'
+      }, d.name));
+    });
+
+    // x-axis line
+    g.appendChild(el('line', { x1: 0, y1: innerH, x2: innerW, y2: innerH, stroke: '#9ca3af' }));
+
+    // ----- KPI totals (weighted rates) -----
+const totals = emailData.reduce((acc, d) => {
+  acc.recipients += d.recipients;
+  acc.opens      += Math.round(d.openRate  * d.recipients / 100);
+  acc.clicks     += Math.round(d.clickRate * d.recipients / 100);
+  acc.bounces    += Math.round(d.bounceRate* d.recipients / 100);
+  acc.unsubs     += Math.round(d.unsubRate * d.recipients / 100);
+  return acc;
+}, { recipients:0, opens:0, clicks:0, bounces:0, unsubs:0 });
+
+const w = (num) => (num / Math.max(1, totals.recipients)) * 100;
+const kpis = [
+  { label: 'Recipients', value: totals.recipients.toLocaleString(), sub: '' },
+  { label: 'Opens',      value: totals.opens.toLocaleString(),      sub: `Open Rate ${w(totals.opens).toFixed(2)}%` },
+  { label: 'Clicks',     value: totals.clicks.toLocaleString(),     sub: `Click Rate ${w(totals.clicks).toFixed(2)}%` },
+  { label: 'Bounces',    value: totals.bounces.toLocaleString(),    sub: `Bounce Rate ${w(totals.bounces).toFixed(2)}%` },
+  { label: 'Unsubs',     value: totals.unsubs.toLocaleString(),     sub: `Unsub Rate ${w(totals.unsubs).toFixed(2)}%` },
+];
+
+const kpiGrid = document.getElementById('kpiGrid');
+kpis.forEach(k => {
+  const div = document.createElement('div');
+  div.className = 'delta';
+  div.innerHTML = `
+    <h4>${k.label}</h4>
+    <div class="vals">
+      <div><strong style="font-size:20px">${k.value}</strong></div>
+      <div class="muted">${k.sub}</div>
+    </div>
+  `;
+  kpiGrid.appendChild(div);
+});
+
+    // ----- helpers -----
+    function el(name, attrs={}, text) {
+      const n = document.createElementNS('http://www.w3.org/2000/svg', name);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      if (text != null) n.textContent = text;
+      return n;
+    }
+    function getCSS(varName) {
+      return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    }
+    function mean(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+    function fmtPct(v){ return (Math.round(v * 100) / 100).toFixed(2) + '%'; }
+
+    // tooltip
+    const tip = document.getElementById('tt');
+    function showTip(e, text) {
+      tip.textContent = text;
+      tip.style.left = e.clientX + 'px';
+      tip.style.top = e.clientY + 'px';
+      tip.style.display = 'block';
+    }
+    function hideTip() { tip.style.display = 'none'; }
+  </script>
+</body>
+</html>
